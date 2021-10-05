@@ -4,29 +4,29 @@
 int main() {
 	double real_value;
 	Field f;
-	double dt = 0.001, t=0.001;
+	double dt = 0.001, t=1;
 	Field_characteristics res;
 
 	/*std::ofstream out("D:\\final_el_field\\Electromagnetic-field\\result.txt", std::ios_base::out | std::ios_base::trunc);
-	std::ofstream out2("D:\\final_el_field\\Electromagnetic-field\\result_real.txt", std::ios_base::out | std::ios_base::trunc);*/
+	std::ofstream out2("D:\\final_el_field\\Electromagnetic-field\\result_real.txt", std::ios_base::out | std::ios_base::trunc);
 
-	/*for (int i = 0; i < f.nx; i++)
+	for (int i = 0; i < f.nx; i++)
 		for (int j = 0; j < f.ny; j++) {
 			f.v.E[1][i][j] = sin(2.0 * M_PI * (dx * i) / (bx - ax));
 			f.v.B[2][i][j] = sin(2.0 * M_PI * (dx * i) / (bx - ax));
 		}
 
 	for (double i = 0; i < t; i += dt) 
-		res = f.FDTD(dt);*/
+		res = f.FDTD(dt);
 
-	/*for (int j = 0; j < f.nx; j++) {
+	for (int j = 0; j < f.nx; j++) {
 		out << res.E[1][j][3] << ';' << j * dx + ax << std::endl;
 		out2 << sin(2.0 * M_PI * (j * dx - c * t) / (bx - ax)) << ';' << j * dx + ax << std::endl;
-	}*/
+	}
 	
 
 
-	/*for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 3; i++)
 		for (int j = 0; j < f.nx; j++)
 			for (int k = 0; k < f.ny; k++) {
 				if (i != 1)
