@@ -9,7 +9,7 @@ int main() {
 
 	double ax = 0, bx = 5E+10, ay = 0, by = 5E+10, az = 0, bz = 1E+9;
 	double real_value;
-	double dt = 0.000001, t = 0.09, dx = 1E+9, dy = 1E+9, dz = 1E+9;
+	double dt = 0.001, t = 90, dx = 1E+9, dy = 1E+9, dz = 1E+9;
 	Field f(dx, dy, dz, ax, ay, az, bx, by, bz);
 	Field_characteristics res;
 
@@ -110,6 +110,7 @@ int main() {
 
 				Bz_out[q][0] += c * dt * (wx * Ey_out[q][1] - wy * Ex_out[q][1]);
 				Bz_out[q][1] += c * dt * (-wx * Ey_out[q][0] + wy * Ex_out[q][0]);
+				q++;
 			}
 
 	}
