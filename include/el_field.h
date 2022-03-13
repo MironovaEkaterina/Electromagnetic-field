@@ -26,7 +26,13 @@ public:
 	int nx, ny,nz;
 	double ax, bx, ay, by,az,bz;
 
-	Field(double dx,double dy,double dz,double ax,double ay, double az, double bx, double by, double bz) {
+	Field(double dx_, double dy_, double dz_, double ax_, double ay_, double az_, double bx_, double by_, double bz_) {
+		dx = dx_;
+		dy = dy_;
+		ax = ax_;
+		bx = bx_;
+		ay = ay_;
+		by = by_;	
 		nx = (bx - ax) / dx + 1;
 		ny = (by - ay) / dy + 1;
 		nz = (bz - az) / dz + 1;
