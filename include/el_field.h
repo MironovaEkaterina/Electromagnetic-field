@@ -50,7 +50,9 @@ public:
 	int nx, ny, nz, size;
 	double ax, bx, ay, by, az, bz;
 
-	Field(double dx_, double dy_, double dz_, double ax_, double ay_, double az_, double bx_, double by_, double bz_) {
+	Field() {}
+
+	Field(double dx_, double dy_, double dz_, double ax_, double ay_, double az_, double bx_, double by_, double bz_, int nx_, int ny_, int nz_) {
 		dx = dx_;
 		dy = dy_;
 		dz = dz_;
@@ -60,9 +62,9 @@ public:
 		by = by_;
 		az = az_;
 		bz = bz_;
-		nx = (bx - ax) / dx + 1;
-		ny = (by - ay) / dy + 1;
-		nz = (bz - az) / dz + 1;
+		nx = nx_;
+		ny = ny_;
+		nz = nz_;
 		size = nx * ny * nz;
 		Ex.resize(nx, ny, nz);
 		Bx.resize(nx, ny, nz);
@@ -75,6 +77,31 @@ public:
 		Jz.resize(nx, ny, nz);
 	};
 
+	void Field::Initialize(double dx_, double dy_, double dz_, double ax_, double ay_, double az_, double bx_, double by_, double bz_, int nx_, int ny_, int nz_) {
+		dx = dx_;
+		dy = dy_;
+		dz = dz_;
+		ax = ax_;
+		bx = bx_;
+		ay = ay_;
+		by = by_;
+		az = az_;
+		bz = bz_;
+		nx = nx_;
+		ny = ny_;
+		nz = nz_;
+		size = nx * ny * nz;
+		Ex.resize(nx, ny, nz);
+		Bx.resize(nx, ny, nz);
+		Jx.resize(nx, ny, nz);
+		Ey.resize(nx, ny, nz);
+		By.resize(nx, ny, nz);
+		Jy.resize(nx, ny, nz);
+		Ez.resize(nx, ny, nz);
+		Bz.resize(nx, ny, nz);
+		Jz.resize(nx, ny, nz);
+	}
+
 	void Field::PSTD(double dt, double t) {
 		int q = 0;
 		double wx, wy, wz, dtE, dtB;
@@ -84,6 +111,9 @@ public:
 		fftw_complex* Bx_out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * size);
 		fftw_complex* By_out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * size);
 		fftw_complex* Bz_out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * size);
+		fftw_complex* Jx_out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * size);
+		fftw_complex* Jy_out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * size);
+		fftw_complex* Jz_out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * size);
 
 		fftw_plan plan;
 
@@ -98,6 +128,12 @@ public:
 		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, &By.data[0], By_out, FFTW_ESTIMATE);
 		fftw_execute(plan);
 		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, &Bz.data[0], Bz_out, FFTW_ESTIMATE);
+		fftw_execute(plan);
+		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, &Jx.data[0], Jx_out, FFTW_ESTIMATE);
+		fftw_execute(plan);
+		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, &Jy.data[0], Jy_out, FFTW_ESTIMATE);
+		fftw_execute(plan);
+		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, &Jz.data[0], Jz_out, FFTW_ESTIMATE);
 		fftw_execute(plan);
 
 		dtE = dt;
@@ -123,18 +159,20 @@ public:
 						else
 							wz = 2 * M_PI * (k_ - nz) / (bz - az);
 
-						Ex_out[q][0] += c * dtE * (-wy * Bz_out[q][1] + wz * By_out[q][1]);
-						Ex_out[q][1] += c * dtE * (wy * Bz_out[q][0] - wz * By_out[q][0]);
-						Ey_out[q][0] += c * dtE * (wx * Bz_out[q][1] - wz * Bx_out[q][1]);
-						Ey_out[q][1] += c * dtE * (-wx * Bz_out[q][0] + wz * Bx_out[q][0]);
-						Ez_out[q][0] += c * dtE * (-wx * By_out[q][1] + wy * Bx_out[q][1]);
-						Ez_out[q][1] += c * dtE * (wx * By_out[q][0] - wy * Bx_out[q][0]);
 						Bx_out[q][0] += c * dtB * (wy * Ez_out[q][1] - wz * Ey_out[q][1]);
 						Bx_out[q][1] += c * dtB * (-wy * Ez_out[q][0] + wz * Ey_out[q][0]);
 						By_out[q][0] += c * dtB * (-wx * Ez_out[q][1] + wz * Ex_out[q][1]);
 						By_out[q][1] += c * dtB * (wx * Ez_out[q][0] - wz * Ex_out[q][0]);
 						Bz_out[q][0] += c * dtB * (wx * Ey_out[q][1] - wy * Ex_out[q][1]);
 						Bz_out[q][1] += c * dtB * (-wx * Ey_out[q][0] + wy * Ex_out[q][0]);
+
+						Ex_out[q][0] += c * dtE * (-wy * Bz_out[q][1] + wz * By_out[q][1]) - 4 * M_PI * dtE * Jx_out[q][0];
+						Ex_out[q][1] += c * dtE * (wy * Bz_out[q][0] - wz * By_out[q][0]) - 4 * M_PI * dtE * Jx_out[q][1];
+						Ey_out[q][0] += c * dtE * (wx * Bz_out[q][1] - wz * Bx_out[q][1]) - 4 * M_PI * dtE * Jy_out[q][0];
+						Ey_out[q][1] += c * dtE * (-wx * Bz_out[q][0] + wz * Bx_out[q][0]) - 4 * M_PI * dtE * Jy_out[q][1];
+						Ez_out[q][0] += c * dtE * (-wx * By_out[q][1] + wy * Bx_out[q][1]) - 4 * M_PI * dtE * Jz_out[q][0];
+						Ez_out[q][1] += c * dtE * (wx * By_out[q][0] - wy * Bx_out[q][0]) - 4 * M_PI * dtE * Jz_out[q][1];
+						
 						q++;
 					}
 			dtE = dt;
@@ -153,6 +191,12 @@ public:
 		fftw_execute(plan);
 		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, Bz_out, &Bz.data[0], FFTW_ESTIMATE);
 		fftw_execute(plan);
+		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, Jx_out, &Jx.data[0], FFTW_ESTIMATE);
+		fftw_execute(plan);
+		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, Jy_out, &Jy.data[0], FFTW_ESTIMATE);
+		fftw_execute(plan);
+		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, Jz_out, &Jz.data[0], FFTW_ESTIMATE);
+		fftw_execute(plan);
 
 		for (int i = 0; i <nx * ny * nz; i++) {
 			Ex[i] /= size;
@@ -161,6 +205,9 @@ public:
 			Bx[i] /= size;
 			By[i] /= size;
 			Bz[i] /= size;
+			Jx[i] /= size;
+			Jy[i] /= size;
+			Jz[i] /= size;
 		}
 
 		fftw_destroy_plan(plan);
@@ -171,6 +218,9 @@ public:
 		fftw_free(Bx_out);
 		fftw_free(By_out);
 		fftw_free(Bz_out);
+		fftw_free(Jx_out);
+		fftw_free(Jy_out);
+		fftw_free(Jz_out);
 	};
 
 	void Field::border_update(double dt) { //обновление граничных значений
