@@ -1,14 +1,16 @@
 ﻿#include <iostream>
 #include <vector>
 #include <cmath>
+#include <complex>
 #include <fftw3.h>
 
 const double c = 3E+10;
 #define M_PI 3.1415926535897932384626433832795
 
+template <typename T>
 class Array {
 public:
-	std::vector<double> data;
+	std::vector<T> array;
 	int nx, ny, nz, size;
 
 	Array() {
@@ -18,34 +20,46 @@ public:
 		size = 0;
 	}
 
-	void Array::resize(int _nx, int _ny, int _nz) {
+	Array(int _nx, int _ny, int _nz) {
 		nx = _nx;
 		ny = _ny;
 		nz = _nz;
 		size = nx * ny * nz;
-		data.assign(size, 0.0);
+		array.assign(size, 0.0);
 	}
 
-	Array::~Array(){
-		data.clear();
+	void resize(int _nx, int _ny, int _nz) {
+		nx = _nx;
+		ny = _ny;
+		nz = _nz;
+		size = nx * ny * nz;
+		array.assign(size, 0.0);
 	}
 
-	double& Array::operator() (int i, int j, int k){
-		return data[i*ny*nz+j*nz+k];
+	~Array(){
+		array.clear();
 	}
 
-	double Array::operator() (int i, int j, int k) const {
-		return data[i * ny * nz + j * nz + k];
+	T& operator() (int i, int j, int k){
+		return array[i*ny*nz+j*nz+k];
 	}
 
-	double& Array::operator[](int i){   
-		return data[i];
+	T operator() (int i, int j, int k) const {
+		return array[i * ny * nz + j * nz + k];
+	}
+
+	T& operator[](int i){   
+		return array[i];
+	}
+
+	T* data() {
+		return array.data();
 	}
 };
 
 class Field {
 public:
-	Array Ex, Ey, Ez, Bx, By, Bz, Jx, Jy, Jz;
+	Array<double> Ex, Ey, Ez, Bx, By, Bz, Jx, Jy, Jz;
 	double dx, dy, dz;
 	int nx, ny, nz, size;
 	double ax, bx, ay, by, az, bz;
@@ -102,48 +116,48 @@ public:
 		Jz.resize(nx, ny, nz);
 	}
 
-	void Field::PSTD(double dt, double t) {
+	void Field::PSATD(double dt, double t) {
 		int q = 0;
-		double wx, wy, wz, dtE, dtB;
-		fftw_complex* Ex_out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * size);
-		fftw_complex* Ey_out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * size);
-		fftw_complex* Ez_out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * size);
-		fftw_complex* Bx_out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * size);
-		fftw_complex* By_out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * size);
-		fftw_complex* Bz_out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * size);
-		fftw_complex* Jx_out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * size);
-		fftw_complex* Jy_out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * size);
-		fftw_complex* Jz_out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * size);
+		std::complex<double> i(0.0, 1.0);
+		double wx, wy, wz, w, c_, s;
+
+		Array<std::complex<double>> Ex_out(nx, ny, nz / 2 + 1);
+		Array<std::complex<double>> Ey_out(nx, ny, nz / 2 + 1);
+		Array<std::complex<double>> Ez_out(nx, ny, nz / 2 + 1);
+		Array<std::complex<double>> Bx_out(nx, ny, nz / 2 + 1);
+		Array<std::complex<double>> By_out(nx, ny, nz / 2 + 1);
+		Array<std::complex<double>> Bz_out(nx, ny, nz / 2 + 1);
+		Array<std::complex<double>> Jx_out(nx, ny, nz / 2 + 1);
+		Array<std::complex<double>> Jy_out(nx, ny, nz / 2 + 1);
+		Array<std::complex<double>> Jz_out(nx, ny, nz / 2 + 1);
 
 		fftw_plan plan;
 
-		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, &Ex.data[0], Ex_out, FFTW_ESTIMATE);
+		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, Ex.data(), (fftw_complex*)(Ex_out.data()), FFTW_ESTIMATE);
 		fftw_execute(plan);
-		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, &Ey.data[0], Ey_out, FFTW_ESTIMATE);
+		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, Ey.data(), (fftw_complex*)(Ey_out.data()), FFTW_ESTIMATE);
 		fftw_execute(plan);
-		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, &Ez.data[0], Ez_out, FFTW_ESTIMATE);
+		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, Ez.data(), (fftw_complex*)(Ez_out.data()), FFTW_ESTIMATE);
 		fftw_execute(plan);
-		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, &Bx.data[0], Bx_out, FFTW_ESTIMATE);
+		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, Bx.data(), (fftw_complex*)(Bx_out.data()), FFTW_ESTIMATE);
 		fftw_execute(plan);
-		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, &By.data[0], By_out, FFTW_ESTIMATE);
+		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, By.data(), (fftw_complex*)(By_out.data()), FFTW_ESTIMATE);
 		fftw_execute(plan);
-		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, &Bz.data[0], Bz_out, FFTW_ESTIMATE);
+		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, Bz.data(), (fftw_complex*)(Bz_out.data()), FFTW_ESTIMATE);
 		fftw_execute(plan);
-		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, &Jx.data[0], Jx_out, FFTW_ESTIMATE);
+		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, Jx.data(), (fftw_complex*)(Jx_out.data()), FFTW_ESTIMATE);
 		fftw_execute(plan);
-		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, &Jy.data[0], Jy_out, FFTW_ESTIMATE);
+		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, Jy.data(), (fftw_complex*)(Jy_out.data()), FFTW_ESTIMATE);
 		fftw_execute(plan);
-		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, &Jz.data[0], Jz_out, FFTW_ESTIMATE);
+		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, Jz.data(), (fftw_complex*)(Jz_out.data()), FFTW_ESTIMATE);
 		fftw_execute(plan);
 
-		dtE = dt;
-		dtB = dt / 2; //для сдвига по времени на -dt/2 сетки B на первой итерации метода
 
 		for (double t1 = 0; t1 < t; t1 += dt) {
 			q = 0;
 			for (int i_ = 0; i_ < nx; i_++)
 				for (int j_ = 0; j_ < ny; j_++)
-					for (int k_ = 0; k_ < nz; k_++) {
+					for (int k_ = 0; k_ < nz / 2 + 1; k_++) {
 						if (i_ <= nx / 2)
 							wx = 2 * M_PI * i_ / (bx - ax);
 						else
@@ -159,43 +173,145 @@ public:
 						else
 							wz = 2 * M_PI * (k_ - nz) / (bz - az);
 
-						Bx_out[q][0] += c * dtB * (wy * Ez_out[q][1] - wz * Ey_out[q][1]);
-						Bx_out[q][1] += c * dtB * (-wy * Ez_out[q][0] + wz * Ey_out[q][0]);
-						By_out[q][0] += c * dtB * (-wx * Ez_out[q][1] + wz * Ex_out[q][1]);
-						By_out[q][1] += c * dtB * (wx * Ez_out[q][0] - wz * Ex_out[q][0]);
-						Bz_out[q][0] += c * dtB * (wx * Ey_out[q][1] - wy * Ex_out[q][1]);
-						Bz_out[q][1] += c * dtB * (-wx * Ey_out[q][0] + wy * Ex_out[q][0]);
+						w = sqrt(wx * wx + wy * wy + wz * wz);
+						c_ = cos(w * c * dt / 2);
+						s = sin(w * c * dt / 2);
+						if (w == 0)
+							w = 1; // чтобы не было деления на 0
+						Bx_out[q] = c_ * Bx_out[q] - i * s * ((wy / w) * Ez_out[q] - (wz / w) * Ey_out[q]);
+						By_out[q] = c_ * By_out[q] + i * s * ((wx / w) * Ez_out[q] - (wz / w) * Ex_out[q]);
+						Bz_out[q] = c_ * Bz_out[q] - i * s * ((wx / w) * Ey_out[q] - (wy / w) * Ex_out[q]);
 
-						Ex_out[q][0] += c * dtE * (-wy * Bz_out[q][1] + wz * By_out[q][1]) - 4 * M_PI * dtE * Jx_out[q][0];
-						Ex_out[q][1] += c * dtE * (wy * Bz_out[q][0] - wz * By_out[q][0]) - 4 * M_PI * dtE * Jx_out[q][1];
-						Ey_out[q][0] += c * dtE * (wx * Bz_out[q][1] - wz * Bx_out[q][1]) - 4 * M_PI * dtE * Jy_out[q][0];
-						Ey_out[q][1] += c * dtE * (-wx * Bz_out[q][0] + wz * Bx_out[q][0]) - 4 * M_PI * dtE * Jy_out[q][1];
-						Ez_out[q][0] += c * dtE * (-wx * By_out[q][1] + wy * Bx_out[q][1]) - 4 * M_PI * dtE * Jz_out[q][0];
-						Ez_out[q][1] += c * dtE * (wx * By_out[q][0] - wy * Bx_out[q][0]) - 4 * M_PI * dtE * Jz_out[q][1];
-						
+						Ex_out[q] = c_ * Ex_out[q] + i * s * ((wy / w) * Bz_out[q] - (wz / w) * By_out[q]) + (1 - c_) * wx/w * (Ex_out[q] * wx / w + Ey_out[q] * wy / w + Ez_out[q] * wz / w);
+						Ey_out[q] = c_ * Ey_out[q] - i * s * ((wx / w) * Bz_out[q] - (wz / w) * Bx_out[q]) + (1 - c_) * wy/w * (Ex_out[q] * wx / w + Ey_out[q] * wy / w + Ez_out[q] * wz / w);
+						Ez_out[q] = c_ * Ez_out[q] + i * s * ((wx / w) * By_out[q] - (wy / w) * Bx_out[q]) + (1 - c_) * wz/w * (Ex_out[q] * wx / w + Ey_out[q] * wy / w + Ez_out[q] * wz / w);
+						q++;
+					}
+		}
+
+		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, (fftw_complex*)(Ex_out.data()), Ex.data(), FFTW_ESTIMATE);
+		fftw_execute(plan);
+		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, (fftw_complex*)(Ey_out.data()), Ey.data(), FFTW_ESTIMATE);
+		fftw_execute(plan);
+		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, (fftw_complex*)(Ez_out.data()), Ez.data(), FFTW_ESTIMATE);
+		fftw_execute(plan);
+		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, (fftw_complex*)(Bx_out.data()), Bx.data(), FFTW_ESTIMATE);
+		fftw_execute(plan);
+		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, (fftw_complex*)(By_out.data()), By.data(), FFTW_ESTIMATE);
+		fftw_execute(plan);
+		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, (fftw_complex*)(Bz_out.data()), Bz.data(), FFTW_ESTIMATE);
+		fftw_execute(plan);
+		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, (fftw_complex*)(Jx_out.data()), Jx.data(), FFTW_ESTIMATE);
+		fftw_execute(plan);
+		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, (fftw_complex*)(Jy_out.data()), Jy.data(), FFTW_ESTIMATE);
+		fftw_execute(plan);
+		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, (fftw_complex*)(Jz_out.data()), Jz.data(), FFTW_ESTIMATE);
+		fftw_execute(plan);
+
+		for (int i = 0; i < nx * ny * nz; i++) {
+			Ex[i] /= size;
+			Ey[i] /= size;
+			Ez[i] /= size;
+			Bx[i] /= size;
+			By[i] /= size;
+			Bz[i] /= size;
+			Jx[i] /= size;
+			Jy[i] /= size;
+			Jz[i] /= size;
+		}
+
+		fftw_destroy_plan(plan);
+	};
+
+	void Field::PSTD(double dt, double t) {
+		int q = 0;
+		std::complex<double> i(0.0, 1.0);
+		double wx, wy, wz, dtE, dtB;
+
+		Array<std::complex<double>> Ex_out(nx, ny, nz / 2 + 1);
+		Array<std::complex<double>> Ey_out(nx, ny, nz / 2 + 1);
+		Array<std::complex<double>> Ez_out(nx, ny, nz / 2 + 1);
+		Array<std::complex<double>> Bx_out(nx, ny, nz / 2 + 1);
+		Array<std::complex<double>> By_out(nx, ny, nz / 2 + 1);
+		Array<std::complex<double>> Bz_out(nx, ny, nz / 2 + 1);
+		Array<std::complex<double>> Jx_out(nx, ny, nz / 2 + 1);
+		Array<std::complex<double>> Jy_out(nx, ny, nz / 2 + 1);
+		Array<std::complex<double>> Jz_out(nx, ny, nz / 2 + 1);
+
+		fftw_plan plan;
+
+		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, Ex.data(), (fftw_complex*)(Ex_out.data()), FFTW_ESTIMATE);
+		fftw_execute(plan);
+		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, Ey.data(), (fftw_complex*)(Ey_out.data()), FFTW_ESTIMATE);
+		fftw_execute(plan);
+		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, Ez.data(), (fftw_complex*)(Ez_out.data()), FFTW_ESTIMATE);
+		fftw_execute(plan);
+		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, Bx.data(), (fftw_complex*)(Bx_out.data()), FFTW_ESTIMATE);
+		fftw_execute(plan);
+		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, By.data(), (fftw_complex*)(By_out.data()), FFTW_ESTIMATE);
+		fftw_execute(plan);
+		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, Bz.data(), (fftw_complex*)(Bz_out.data()), FFTW_ESTIMATE);
+		fftw_execute(plan);
+		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, Jx.data(), (fftw_complex*)(Jx_out.data()), FFTW_ESTIMATE);
+		fftw_execute(plan);
+		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, Jy.data(), (fftw_complex*)(Jy_out.data()), FFTW_ESTIMATE);
+		fftw_execute(plan);
+		plan = fftw_plan_dft_r2c_3d(nx, ny, nz, Jz.data(), (fftw_complex*)(Jz_out.data()), FFTW_ESTIMATE);
+		fftw_execute(plan);
+
+		dtE = dt;
+		dtB = dt / 2; //для сдвига по времени на -dt/2 сетки B на первой итерации метода
+
+		for (double t1 = 0; t1 < t; t1 += dt) {
+			q = 0;
+			for (int i_ = 0; i_ < nx; i_++)
+				for (int j_ = 0; j_ < ny; j_++)
+					for (int k_ = 0; k_ < nz/2+1; k_++) {
+						if (i_ <= nx / 2)
+							wx = 2 * M_PI * i_ / (bx - ax);
+						else
+							wx = 2 * M_PI * (i_ - nx) / (bx - ax);
+
+						if (j_ <= ny / 2)
+							wy = 2 * M_PI * j_ / (by - ay);
+						else
+							wy = 2 * M_PI * (j_ - ny) / (by - ay);
+
+						if (k_ <= nz / 2)
+							wz = 2 * M_PI * k_ / (bz - az);
+						else
+							wz = 2 * M_PI * (k_ - nz) / (bz - az);
+
+						Bx_out[q] -= i * c * dtB * (wy * Ez_out[q] - wz * Ey_out[q]);
+						By_out[q] += i * c * dtB * (wx * Ez_out[q] - wz * Ex_out[q]);
+						Bz_out[q] -= i * c * dtB * (wx * Ey_out[q] - wy * Ex_out[q]);
+
+						Ex_out[q] += i * c * dtE * (wy * Bz_out[q] - wz * By_out[q]) - 4 * M_PI * dtE * Jx_out[q];
+						Ey_out[q] += i * c * dtE * (-wx * Bz_out[q] + wz * Bx_out[q]) - 4 * M_PI * dtE * Jy_out[q];
+						Ez_out[q] += i * c * dtE * (wx * By_out[q] - wy * Bx_out[q]) - 4 * M_PI * dtE * Jz_out[q];					
 						q++;
 					}
 			dtE = dt;
 			dtB = dt;
 		}
 
-		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, Ex_out, &Ex.data[0], FFTW_ESTIMATE);
+		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, (fftw_complex*)(Ex_out.data()), Ex.data(), FFTW_ESTIMATE);
 		fftw_execute(plan);
-		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, Ey_out, &Ey.data[0], FFTW_ESTIMATE);
+		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, (fftw_complex*)(Ey_out.data()), Ey.data(), FFTW_ESTIMATE);
 		fftw_execute(plan);
-		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, Ez_out, &Ez.data[0], FFTW_ESTIMATE);
+		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, (fftw_complex*)(Ez_out.data()), Ez.data(), FFTW_ESTIMATE);
 		fftw_execute(plan);
-		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, Bx_out, &Bx.data[0], FFTW_ESTIMATE);
+		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, (fftw_complex*)(Bx_out.data()), Bx.data(), FFTW_ESTIMATE);
 		fftw_execute(plan);
-		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, By_out, &By.data[0], FFTW_ESTIMATE);
+		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, (fftw_complex*)(By_out.data()), By.data(), FFTW_ESTIMATE);
 		fftw_execute(plan);
-		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, Bz_out, &Bz.data[0], FFTW_ESTIMATE);
+		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, (fftw_complex*)(Bz_out.data()), Bz.data(), FFTW_ESTIMATE);
 		fftw_execute(plan);
-		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, Jx_out, &Jx.data[0], FFTW_ESTIMATE);
+		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, (fftw_complex*)(Jx_out.data()), Jx.data(), FFTW_ESTIMATE);
 		fftw_execute(plan);
-		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, Jy_out, &Jy.data[0], FFTW_ESTIMATE);
+		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, (fftw_complex*)(Jy_out.data()), Jy.data(), FFTW_ESTIMATE);
 		fftw_execute(plan);
-		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, Jz_out, &Jz.data[0], FFTW_ESTIMATE);
+		plan = fftw_plan_dft_c2r_3d(nx, ny, nz, (fftw_complex*)(Jz_out.data()), Jz.data(), FFTW_ESTIMATE);
 		fftw_execute(plan);
 
 		for (int i = 0; i <nx * ny * nz; i++) {
@@ -211,16 +327,6 @@ public:
 		}
 
 		fftw_destroy_plan(plan);
-
-		fftw_free(Ex_out);
-		fftw_free(Ey_out);
-		fftw_free(Ez_out);
-		fftw_free(Bx_out);
-		fftw_free(By_out);
-		fftw_free(Bz_out);
-		fftw_free(Jx_out);
-		fftw_free(Jy_out);
-		fftw_free(Jz_out);
 	};
 
 	void Field::border_update(double dt) { //обновление граничных значений
