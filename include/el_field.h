@@ -168,7 +168,7 @@ public:
 						else
 							wy = 2 * M_PI * (j_ - ny) / (by - ay);
 
-						if (k_ <= nz / 2)
+						if (k_ <= (nz / 2+1)/2)
 							wz = 2 * M_PI * k_ / (bz - az);
 						else
 							wz = 2 * M_PI * (k_ - nz) / (bz - az);
@@ -277,7 +277,7 @@ public:
 						else
 							wy = 2 * M_PI * (j_ - ny) / (by - ay);
 
-						if (k_ <= nz / 2)
+						if (k_ <= (nz / 2 + 1) / 2)
 							wz = 2 * M_PI * k_ / (bz - az);
 						else
 							wz = 2 * M_PI * (k_ - nz) / (bz - az);
